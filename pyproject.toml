@@ -1,0 +1,49 @@
+[project]
+name = "shortify"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.14"
+dependencies = [
+    "beanie>=2.0.1",
+    "fastapi>=0.128.8",
+    "pydantic>=2.12.5",
+    "pydantic-settings>=2.12.0",
+    "pymongo>=4.16.0",
+    "uvicorn[standard]>=0.40.0",
+]
+
+[dependency-groups]
+dev = [
+    "pyrefly>=0.52.0",
+    "ruff>=0.15.0",
+]
+
+[tool.ruff.lint]
+select = [
+    "F",        # Pyflakes rules
+    "W",        # PyCodeStyle warnings
+    "E",        # PyCodeStyle errors
+    "I",        # Sort imports properly
+    "UP",       # Warn if certain things can changed due to newer Python versions
+    "C4",       # Catch incorrect use of comprehensions, dict, list, etc
+    "FA",       # Enforce from __future__ import annotations
+    "ISC",      # Good use of string concatenation
+    "ICN",      # Use common import conventions
+    "SIM",      # Common simplification rules
+    "TID",      # Some good import practices
+    "PTH",      # Use pathlib instead of os.path
+    "NPY",      # Some numpy-specific things
+    "RUF",      # Ruff-specific rules
+    "ARG001",   # unused arguments in functions
+    "ANN",      # flake8-annotations (Strict type hinting)
+    "B",        # flake8-bugbear (Common logic errors)
+    "FAST",     # FastAPI
+    "ASYNC",    # flake8-async (crucial for FastAPI/Async SQLAlchemy)
+]
+
+[tool.pyrefly]
+project-includes = [
+    "**/*.py*",
+    "**/*.ipynb",
+]
