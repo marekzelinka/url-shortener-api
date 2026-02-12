@@ -1,6 +1,6 @@
 from typing import Annotated
 
-from pydantic import UrlConstraints
+from pydantic import SecretStr, UrlConstraints
 from pydantic_core import MultiHostUrl
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
@@ -17,6 +17,11 @@ class Settings(BaseSettings):
         UrlConstraints(allowed_schemes=["mongodb", "mongodb+srv"]),
     ]
     mongo_db_name: str
+
+    # Auth
+    secret_key: SecretStr
+    algorithm: str = "HS256"
+    access_token_expire_minutes: int = 30
 
     # URLs
     url_ident_length: int = 7

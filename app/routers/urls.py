@@ -4,6 +4,7 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, HTTPException, status
 
 from app.core.config import config
+from app.deps import CurrentActiveUserDep
 from app.models import (
     Paginated,
     PaginationParams,
@@ -20,7 +21,9 @@ router = APIRouter(tags=["urls"])
 @router.post(
     "/shorten", status_code=status.HTTP_201_CREATED, response_model=ShortUrlPublic
 )
-async def create_short_url(*, short_url: ShortUrlCreate) -> ShortUrl:
+async def create_short_url(
+    *, current_user: CurrentActiveUserDep, short_url: ShortUrlCreate
+) -> ShortUrl:
     if short_url.slug is not None:
         existing_short_url = await ShortUrl.find(
             ShortUrl.slug == short_url.slug
@@ -45,29 +48,10 @@ async def create_short_url(*, short_url: ShortUrlCreate) -> ShortUrl:
         ident=generate_url_ident(origin, config.url_ident_length),
         origin=origin,
         expires_at=expires_at,
+        user_id=current_user.id,
     )
     await db_short_url.insert()
 
     return db_short_url
 
 
-@router.get("/shorten", response_model=Paginated[ShortUrlPublic])
-async def read_urls(
-    *,
-    pagination_params: Annotated[PaginationParams, Depends()],
-    sort_params: Annotated[SortingParams, Depends()],
-) -> Paginated[ShortUrl]:
-    short_urls = (
-        await ShortUrl.find()
-        .skip(pagination_params.skip)
-        .limit(pagination_params.limit)
-        .sort((sort_params.sort, sort_params.order.direction))
-        .to_list()
-    )
-
-    return Paginated[ShortUrl](
-        page=pagination_params.page,
-        per_page=pagination_params.per_page,
-        total=await ShortUrl.count(),
-        results=short_urls,
-    )

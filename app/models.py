@@ -51,7 +51,7 @@ class SortingParams(BaseModel):
 class User(Document):
     username: Annotated[str, Indexed(unique=True)]
     email: Annotated[EmailStr, Indexed(unique=True)]
-    hashed_password: str
+    password_hash: str
     is_active: bool = True
     is_superuser: bool = False
     created_at: Annotated[
@@ -80,6 +80,11 @@ class UserPrivate(UserBase):
     model_config = ConfigDict(from_attributes=True)
 
     created_at: datetime
+
+
+class Token(BaseModel):
+    access_token: str
+    token_type: str
 
 
 class ShortUrl(Document):
@@ -125,4 +130,4 @@ class ShortUrlPublic(BaseModel):
     slug: str | None = None
 
 
-__beanie_models__ = [ShortUrl]
+__beanie_models__ = [User, ShortUrl]
