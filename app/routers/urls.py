@@ -1,17 +1,13 @@
 from datetime import UTC, datetime, timedelta
-from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, HTTPException, status
 
 from app.core.config import config
 from app.deps import CurrentActiveUserDep
 from app.models import (
-    Paginated,
-    PaginationParams,
     ShortUrl,
     ShortUrlCreate,
     ShortUrlPublic,
-    SortingParams,
 )
 from app.utils import generate_url_ident
 
@@ -53,5 +49,3 @@ async def create_short_url(
     await db_short_url.insert()
 
     return db_short_url
-
-
