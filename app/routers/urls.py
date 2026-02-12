@@ -2,7 +2,9 @@ from datetime import UTC, datetime, timedelta
 
 from fastapi import APIRouter, HTTPException, status
 
+from app.core.config import config
 from app.models import ShortUrl, ShortUrlCreate, ShortUrlPublic
+from app.utils import generate_url_ident
 
 router = APIRouter(tags=["urls"])
 
@@ -21,18 +23,21 @@ async def create_short_url(*, short_url: ShortUrlCreate) -> ShortUrl:
                 detail="The URL associated with this slug already exists",
             )
 
+    origin = str(short_url.url)
     expires_at = (
         (datetime.now(tz=UTC) + timedelta(days=short_url.expiration_days))
         if short_url.expiration_days
         else None
     )
 
-    db_short_url = await ShortUrl(
+    db_short_url = ShortUrl(
         **short_url.model_dump(
             exclude={"url", "expiration_days"},
         ),
-        origin=str(short_url.url),
+        ident=generate_url_ident(origin, config.url_ident_length),
+        origin=origin,
         expires_at=expires_at,
-    ).insert()
+    )
+    await db_short_url.insert()
 
     return db_short_url

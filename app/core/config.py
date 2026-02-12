@@ -11,11 +11,15 @@ class Settings(BaseSettings):
         env_file_encoding="utf-8",
     )
 
+    # MongoDB
     mongo_uri: Annotated[
         MultiHostUrl,
         UrlConstraints(allowed_schemes=["mongodb", "mongodb+srv"]),
     ]
     mongo_db_name: str
+
+    # URLs
+    url_ident_length: int = 7
 
 
 config = Settings.model_validate({})

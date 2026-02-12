@@ -14,6 +14,7 @@ class ShortUrlCreate(BaseModel):
     @field_validator("slug", mode="after")
     @classmethod
     def normalize_slug(cls, slug: str | None) -> str | None:
+        """Transforms existing slug by lowercasing and replacing spaces with dashes."""
         if slug is not None:
             slug = slug.strip().lower().replace(" ", "-")
         return slug
@@ -24,6 +25,7 @@ class ShortUrl(Document):
         name = "urls"
         use_state_management = True
 
+    ident: Annotated[str, Indexed(unique=True)]
     origin: str
     views: int = 0
     created_at: Annotated[
@@ -37,6 +39,7 @@ class ShortUrl(Document):
 class ShortUrlPublic(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
+    ident: str
     origin: AnyUrl
     views: int
     created_at: datetime
