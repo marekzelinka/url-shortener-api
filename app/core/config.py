@@ -1,8 +1,17 @@
 from typing import Annotated
 
-from pydantic import SecretStr, UrlConstraints
+from pydantic import AnyUrl, BeforeValidator, SecretStr, UrlConstraints, computed_field
 from pydantic_core import MultiHostUrl
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+
+def parse_cors(v: str | list[str] | None) -> list[str] | str:
+    if isinstance(v, str) and not v.startswith("["):
+        return [i.strip() for i in v.split(",") if i.strip()]
+    if isinstance(v, list | str):
+        return v
+
+    raise ValueError(v)
 
 
 class Settings(BaseSettings):
@@ -17,6 +26,14 @@ class Settings(BaseSettings):
         UrlConstraints(allowed_schemes=["mongodb", "mongodb+srv"]),
     ]
     mongo_db_name: str
+
+    # CORS
+    cors_origins: Annotated[list[AnyUrl] | str, BeforeValidator(parse_cors)] = []
+
+    @computed_field
+    @property
+    def all_cors_origins(self) -> list[str]:
+        return [str(origin).rstrip("/") for origin in self.cors_origins]
 
     # Auth
     secret_key: SecretStr
