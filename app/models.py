@@ -125,7 +125,7 @@ class ShortUrlPublic(BaseModel):
     origin: AnyUrl
     views: int
     created_at: datetime
-    expire_at: datetime | None = None
+    expires_at: datetime | None = None
     last_visit_at: datetime | None = None
     slug: str | None = None
 
