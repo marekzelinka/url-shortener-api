@@ -4,7 +4,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 
 from app.core.db import init_db
-from app.routers import urls
+from app.routers import redirect, urls
 
 
 @asynccontextmanager
@@ -17,3 +17,4 @@ async def lifespan(_app: FastAPI) -> AsyncGenerator[None]:
 app = FastAPI(lifespan=lifespan)
 
 app.include_router(urls.router)
+app.include_router(redirect.router)
