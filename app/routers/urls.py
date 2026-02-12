@@ -1,9 +1,17 @@
 from datetime import UTC, datetime, timedelta
+from typing import Annotated
 
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status
 
 from app.core.config import config
-from app.models import ShortUrl, ShortUrlCreate, ShortUrlPublic
+from app.models import (
+    Paginated,
+    PaginationParams,
+    ShortUrl,
+    ShortUrlCreate,
+    ShortUrlPublic,
+    SortingParams,
+)
 from app.utils import generate_url_ident
 
 router = APIRouter(tags=["urls"])
@@ -41,3 +49,25 @@ async def create_short_url(*, short_url: ShortUrlCreate) -> ShortUrl:
     await db_short_url.insert()
 
     return db_short_url
+
+
+@router.get("/shorten", response_model=Paginated[ShortUrlPublic])
+async def read_urls(
+    *,
+    pagination_params: Annotated[PaginationParams, Depends()],
+    sort_params: Annotated[SortingParams, Depends()],
+) -> Paginated[ShortUrl]:
+    short_urls = (
+        await ShortUrl.find()
+        .skip(pagination_params.skip)
+        .limit(pagination_params.limit)
+        .sort((sort_params.sort, sort_params.order.direction))
+        .to_list()
+    )
+
+    return Paginated[ShortUrl](
+        page=pagination_params.page,
+        per_page=pagination_params.per_page,
+        total=await ShortUrl.count(),
+        results=short_urls,
+    )

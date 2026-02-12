@@ -1,9 +1,52 @@
 from datetime import UTC, datetime
+from enum import Enum
 from functools import partial
-from typing import Annotated
+from typing import Annotated, TypeVar
 
 from beanie import Document, Indexed
+from beanie.odm.enums import SortDirection
 from pydantic import AnyUrl, BaseModel, ConfigDict, Field, field_validator
+from pydantic.generics import GenericModel
+
+SchemaType = TypeVar("SchemaType", bound=BaseModel)
+
+
+class Paginated[SchemaType](GenericModel):
+    page: int
+    per_page: int
+    total: int
+    results: list[SchemaType]
+
+
+class PaginationParams(BaseModel):
+    page: Annotated[int, Field(ge=1)] = 1
+    per_page: Annotated[int, Field(ge=1, le=100)] = 10
+
+    @property
+    def skip(self) -> int:
+        return (self.page - 1) * self.per_page
+
+    @property
+    def limit(self) -> int:
+        return self.per_page
+
+
+class SortOrder(Enum):
+    ASC = "asc"
+    DESC = "desc"
+
+    def __int__(self) -> int:
+        """Converts the enum to an integer to be used by MongoDB."""
+        return 1 if self.value == "asc" else -1
+
+    @property
+    def direction(self) -> SortDirection:
+        return SortDirection(int(self))
+
+
+class SortingParams(BaseModel):
+    sort: str = "created_at"
+    order: SortOrder = SortOrder.ASC
 
 
 class ShortUrlCreate(BaseModel):
