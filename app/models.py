@@ -1,10 +1,19 @@
+import re
 from datetime import UTC, datetime
 from enum import Enum
 from functools import partial
 from typing import Annotated, TypeVar
 
 from beanie import Document, Indexed, PydanticObjectId, SortDirection
-from pydantic import AnyUrl, BaseModel, ConfigDict, EmailStr, Field, field_validator
+from pydantic import (
+    AnyUrl,
+    BaseModel,
+    ConfigDict,
+    EmailStr,
+    Field,
+    StringConstraints,
+    field_validator,
+)
 from pydantic.generics import GenericModel
 
 SchemaType = TypeVar("SchemaType", bound=BaseModel)
@@ -48,8 +57,20 @@ class SortingParams(BaseModel):
     order: SortOrder = SortOrder.ASC
 
 
+ConstrainedUsername = Annotated[
+    str,
+    StringConstraints(
+        min_length=3,
+        max_length=64,
+        pattern=re.compile(r"^[A-Za-z0-9-_.]+$"),
+        to_lower=True,
+        strip_whitespace=True,
+    ),
+]
+
+
 class User(Document):
-    username: Annotated[str, Indexed(unique=True)]
+    username: Annotated[ConstrainedUsername, Indexed(unique=True)]
     email: Annotated[EmailStr, Indexed(unique=True)]
     password_hash: str
     is_active: bool = True
