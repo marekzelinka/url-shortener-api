@@ -1,6 +1,7 @@
 import re
 from typing import Annotated
 
+from beanie import SortDirection
 from fastapi import APIRouter, Depends, HTTPException, status
 
 from app.core.security import hash_password
@@ -72,4 +73,27 @@ async def read_current_user_urls(
         per_page=pagination_params.per_page,
         total=await ShortUrl.count(),
         results=short_urls,
+    )
+
+
+@router.get("/me/most-visited", response_model=Paginated[ShortUrlPublic])
+async def read_current_user_most_visited_urls(
+    *,
+    current_user: CurrentActiveUserDep,
+    pagination_params: Annotated[PaginationParams, Depends()],
+) -> Paginated[ShortUrl]:
+    query = (
+        ShortUrl.find(ShortUrl.user_id == current_user.id)
+        .skip(pagination_params.skip)
+        .limit(pagination_params.limit)
+        .sort(("views", SortDirection.DESCENDING))
+    )
+    most_visited_urls = await query.to_list()
+    total_urls = await query.count()
+
+    return Paginated[ShortUrl](
+        page=pagination_params.page,
+        per_page=pagination_params.per_page,
+        total=total_urls,
+        results=most_visited_urls,
     )
