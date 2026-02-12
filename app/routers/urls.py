@@ -49,3 +49,53 @@ async def create_short_url(
     await db_short_url.insert()
 
     return db_short_url
+
+
+@router.get("/urls/{ident}", response_model=ShortUrlPublic)
+async def read_short_url(*, current_user: CurrentActiveUserDep, ident: str) -> ShortUrl:
+    short_url = await ShortUrl.find(
+        ShortUrl.user_id == current_user.id, ShortUrl.ident == ident
+    ).first_or_none()
+    if not short_url:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Short URL with identifier {ident!r} not found",
+        )
+
+    return short_url
+
+
+@router.patch("/urls/{ident}/refresh", response_model=ShortUrlPublic)
+async def refresh_short_url(
+    *, current_user: CurrentActiveUserDep, ident: str
+) -> ShortUrl:
+    short_url = await ShortUrl.find(
+        ShortUrl.user_id == current_user.id, ShortUrl.ident == ident
+    ).first_or_none()
+    if not short_url:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Short URL with identifier {ident!r} not found",
+        )
+
+    if short_url.expires_at:
+        previous_expires_at = short_url.expires_at - short_url.created_at
+        short_url.expires_at = datetime.now(tz=UTC) + previous_expires_at
+
+        await short_url.save_changes()
+
+    return short_url
+
+
+@router.delete("/urls/{ident}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_short_url(*, current_user: CurrentActiveUserDep, ident: str) -> None:
+    short_url = await ShortUrl.find(
+        ShortUrl.user_id == current_user.id, ShortUrl.ident == ident
+    ).first_or_none()
+    if not short_url:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Short URL with identifier {ident!r} not found",
+        )
+
+    await short_url.delete()
