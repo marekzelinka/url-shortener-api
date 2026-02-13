@@ -1,29 +1,34 @@
 import re
-from typing import Annotated
 
 from beanie import SortDirection
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, HTTPException, status
 
 from app.core.security import hash_password
-from app.deps import CurrentActiveUserDep, CurrentUserDep
+from app.deps import (
+    CurrentActiveSuperUserDep,
+    CurrentActiveUserDep,
+    CurrentUserDep,
+    PaginationParamsDep,
+    SortParamsDep,
+)
 from app.models import (
     Paginated,
-    PaginationParams,
     ShortUrl,
-    ShortUrlPublic,
-    SortingParams,
+    ShortUrlOut,
     User,
-    UserCreate,
-    UserPrivate,
+    UserIn,
+    UserOut,
+    UserOutPrivate,
+    UserUpdate,
 )
 
 router = APIRouter(prefix="/users", tags=["users"])
 
 
-@router.post("/", status_code=status.HTTP_201_CREATED, response_model=UserPrivate)
-async def create_user(*, user: UserCreate) -> User:
+@router.post("/", status_code=status.HTTP_201_CREATED, response_model=UserOut)
+async def create_user(*, user_in: UserIn) -> User:
     duplicate_username_user = await User.find(
-        {"username": {"$regex": f"^{re.escape(user.username)}$", "$options": "i"}}
+        {"username": {"$regex": f"^{re.escape(user_in.username)}$", "$options": "i"}}
     ).first_or_none()
     if duplicate_username_user:
         raise HTTPException(
@@ -31,69 +36,135 @@ async def create_user(*, user: UserCreate) -> User:
         )
 
     duplicate_email_user = await User.find(
-        {"email": {"$regex": f"^{re.escape(user.email)}$", "$options": "i"}}
+        {"email": {"$regex": f"^{re.escape(user_in.email)}$", "$options": "i"}}
     ).first_or_none()
     if duplicate_email_user:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST, detail="Email already exists"
         )
 
-    db_user = User(
-        **user.model_dump(exclude={"email", "password"}),
-        email=user.email.lower(),
-        password_hash=hash_password(user.password),
+    user = User(
+        **user_in.model_dump(exclude={"email", "password"}),
+        email=user_in.email.lower(),
+        password_hash=hash_password(user_in.password),
     )
-    await db_user.insert()
+    await user.insert()
 
-    return db_user
-
-
-@router.get("/me", response_model=UserPrivate)
-async def read_current_user(*, current_user: CurrentUserDep) -> User:
-    return current_user
+    return user
 
 
-@router.get("/me/urls", response_model=Paginated[ShortUrlPublic])
-async def read_current_user_urls(
+@router.get("/", tags=["admin"], response_model=Paginated[UserOutPrivate])
+async def read_users(
     *,
-    current_user: CurrentActiveUserDep,
-    pagination_params: Annotated[PaginationParams, Depends()],
-    sort_params: Annotated[SortingParams, Depends()],
-) -> Paginated[ShortUrl]:
+    _superuser: CurrentActiveSuperUserDep,
+    pagination_params: PaginationParamsDep,
+    sort_params: SortParamsDep,
+) -> Paginated[User]:
+    users_query = User.find()
+
+    total_count = await users_query.count()
     short_urls = (
-        await ShortUrl.find(ShortUrl.user_id == current_user.id)
-        .skip(pagination_params.skip)
+        await users_query.skip(pagination_params.skip)
         .limit(pagination_params.limit)
         .sort((sort_params.sort, sort_params.order.direction))
         .to_list()
     )
 
-    return Paginated[ShortUrl](
+    return Paginated(
         page=pagination_params.page,
         per_page=pagination_params.per_page,
-        total=await ShortUrl.count(),
+        total=total_count,
         results=short_urls,
     )
 
 
-@router.get("/me/most-visited", response_model=Paginated[ShortUrlPublic])
-async def read_current_user_most_visited_urls(
-    *,
-    current_user: CurrentActiveUserDep,
-    pagination_params: Annotated[PaginationParams, Depends()],
-) -> Paginated[ShortUrl]:
-    query = (
-        ShortUrl.find(ShortUrl.user_id == current_user.id)
-        .skip(pagination_params.skip)
-        .limit(pagination_params.limit)
-        .sort(("views", SortDirection.DESCENDING))
-    )
-    most_visited_urls = await query.to_list()
-    total_urls = await query.count()
+@router.get("/me", response_model=UserOut)
+async def read_current_user(*, user: CurrentUserDep) -> User:
+    return user
 
-    return Paginated[ShortUrl](
+
+@router.get("/me/urls", response_model=Paginated[ShortUrlOut])
+async def read_current_user_short_urls(
+    *,
+    user: CurrentActiveUserDep,
+    pagination_params: PaginationParamsDep,
+    sort_params: SortParamsDep,
+) -> Paginated:
+    short_urls_query = ShortUrl.find(ShortUrl.user_id == user.id)
+
+    total_count = await short_urls_query.count()
+    short_urls = (
+        await short_urls_query.skip(pagination_params.skip)
+        .limit(pagination_params.limit)
+        .sort((sort_params.sort, sort_params.order.direction))
+        .to_list()
+    )
+
+    return Paginated(
         page=pagination_params.page,
         per_page=pagination_params.per_page,
-        total=total_urls,
-        results=most_visited_urls,
+        total=total_count,
+        results=short_urls,
     )
+
+
+@router.get("/me/most-visited", response_model=Paginated[ShortUrlOut])
+async def read_current_user_most_visited_short_urls(
+    *, user: CurrentActiveUserDep, pagination_params: PaginationParamsDep
+) -> Paginated:
+    most_visited_short_urls_query = ShortUrl.find(ShortUrl.user_id == user.id)
+
+    total_count = await most_visited_short_urls_query.count()
+    most_visited_short_urls = (
+        await most_visited_short_urls_query.skip(pagination_params.skip)
+        .limit(pagination_params.limit)
+        .sort(("views", SortDirection.DESCENDING))
+        .to_list()
+    )
+
+    return Paginated(
+        page=pagination_params.page,
+        per_page=pagination_params.per_page,
+        total=total_count,
+        results=most_visited_short_urls,
+    )
+
+
+@router.patch("/me", response_model=UserOut)
+async def update_current_user(
+    *, user: CurrentActiveUserDep, updates: UserUpdate
+) -> User:
+    if updates.username is not None:
+        duplicate_username_user = await User.find(
+            {
+                "username": {
+                    "$regex": f"^{re.escape(updates.username)}$",
+                    "$options": "i",
+                }
+            }
+        ).first_or_none()
+        if duplicate_username_user:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Username already exists",
+            )
+
+        user.username = updates.username
+
+    if updates.email is not None:
+        duplicate_email_user = await User.find(
+            {"email": {"$regex": f"^{re.escape(updates.email)}$", "$options": "i"}}
+        ).first_or_none()
+        if duplicate_email_user:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST, detail="Email already exists"
+            )
+
+        user.email = updates.email.lower()
+
+    if updates.password is not None:
+        user.password_hash = hash_password(updates.password)
+
+    await user.save_changes()
+
+    return user

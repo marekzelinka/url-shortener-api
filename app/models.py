@@ -70,6 +70,10 @@ ConstrainedUsername = Annotated[
 
 
 class User(Document):
+    class Settings:
+        name = "users"
+        use_state_management = True
+
     username: Annotated[ConstrainedUsername, Indexed(unique=True)]
     email: Annotated[EmailStr, Indexed(unique=True)]
     password_hash: str
@@ -85,21 +89,32 @@ class UserBase(BaseModel):
     email: EmailStr
 
 
-class UserCreate(UserBase):
+class UserIn(UserBase):
     password: str
 
 
 class UserUpdate(BaseModel):
     username: str | None = None
     email: EmailStr | None = None
-    is_active: bool | None = None
-    is_superuser: bool | None = None
     password: str | None = None
 
 
-class UserPrivate(UserBase):
+class UserPrivateUpdate(UserUpdate):
+    is_active: bool | None = None
+    is_superuser: bool | None = None
+
+
+class UserOut(UserBase):
     model_config = ConfigDict(from_attributes=True)
 
+    created_at: datetime
+
+
+class UserOutPrivate(UserBase):
+    model_config = ConfigDict(from_attributes=True)
+
+    is_active: bool
+    is_superuser: bool
     created_at: datetime
 
 
@@ -125,7 +140,7 @@ class ShortUrl(Document):
     user_id: PydanticObjectId
 
 
-class ShortUrlCreate(BaseModel):
+class ShortUrlIn(BaseModel):
     url: AnyUrl
     slug: Annotated[str | None, Field(min_length=1, max_length=64)] = None
     expiration_days: Annotated[float | None, Field(ge=0.0)] = None
@@ -139,7 +154,7 @@ class ShortUrlCreate(BaseModel):
         return slug
 
 
-class ShortUrlPublic(BaseModel):
+class ShortUrlOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
     ident: str
@@ -149,6 +164,10 @@ class ShortUrlPublic(BaseModel):
     expires_at: datetime | None = None
     last_visit_at: datetime | None = None
     slug: str | None = None
+
+
+class ShortUrlOutPrivate(ShortUrlOut):
+    user_id: PydanticObjectId
 
 
 __beanie_models__ = [User, ShortUrl]

@@ -3,11 +3,18 @@ from datetime import UTC, datetime, timedelta
 from fastapi import APIRouter, HTTPException, status
 
 from app.core.config import config
-from app.deps import CurrentActiveUserDep
+from app.deps import (
+    CurrentActiveSuperUserDep,
+    CurrentActiveUserDep,
+    PaginationParamsDep,
+    SortParamsDep,
+)
 from app.models import (
+    Paginated,
     ShortUrl,
-    ShortUrlCreate,
-    ShortUrlPublic,
+    ShortUrlIn,
+    ShortUrlOut,
+    ShortUrlOutPrivate,
 )
 from app.utils import generate_url_ident
 
@@ -15,14 +22,14 @@ router = APIRouter(tags=["urls"])
 
 
 @router.post(
-    "/shorten", status_code=status.HTTP_201_CREATED, response_model=ShortUrlPublic
+    "/shorten", status_code=status.HTTP_201_CREATED, response_model=ShortUrlOut
 )
 async def create_short_url(
-    *, current_user: CurrentActiveUserDep, short_url: ShortUrlCreate
+    *, user: CurrentActiveUserDep, short_url_in: ShortUrlIn
 ) -> ShortUrl:
-    if short_url.slug is not None:
+    if short_url_in.slug is not None:
         existing_short_url = await ShortUrl.find(
-            ShortUrl.slug == short_url.slug
+            ShortUrl.slug == short_url_in.slug
         ).first_or_none()
         if existing_short_url:
             raise HTTPException(
@@ -30,32 +37,57 @@ async def create_short_url(
                 detail="The URL associated with this slug already exists",
             )
 
-    origin = str(short_url.url)
+    origin = str(short_url_in.url)
     expires_at = (
-        (datetime.now(tz=UTC) + timedelta(days=short_url.expiration_days))
-        if short_url.expiration_days
+        (datetime.now(tz=UTC) + timedelta(days=short_url_in.expiration_days))
+        if short_url_in.expiration_days
         else None
     )
 
-    db_short_url = ShortUrl(
-        **short_url.model_dump(
+    short_url = ShortUrl(
+        **short_url_in.model_dump(
             exclude={"url", "expiration_days"},
         ),
         ident=generate_url_ident(origin, config.url_ident_length),
         origin=origin,
         expires_at=expires_at,
-        user_id=current_user.id,
+        user_id=user.id,
     )
-    await db_short_url.insert()
+    await short_url.insert()
 
-    return db_short_url
+    return short_url
 
 
-@router.get("/urls/{ident}", response_model=ShortUrlPublic)
-async def read_short_url(*, current_user: CurrentActiveUserDep, ident: str) -> ShortUrl:
-    short_url = await ShortUrl.find(
-        ShortUrl.user_id == current_user.id, ShortUrl.ident == ident
-    ).first_or_none()
+@router.get("/urls", tags=["admin"], response_model=Paginated[ShortUrlOutPrivate])
+async def read_short_urls(
+    *,
+    _superuser: CurrentActiveSuperUserDep,
+    pagination_params: PaginationParamsDep,
+    sort_params: SortParamsDep,
+) -> Paginated:
+    short_urls_query = ShortUrl.find()
+
+    short_urls = (
+        await short_urls_query.skip(pagination_params.skip)
+        .limit(pagination_params.limit)
+        .sort((sort_params.sort, sort_params.order.direction))
+        .to_list()
+    )
+    total_count = await short_urls_query.count()
+
+    return Paginated(
+        page=pagination_params.page,
+        per_page=pagination_params.per_page,
+        total=total_count,
+        results=short_urls,
+    )
+
+
+@router.get("/urls/{ident}", tags=["admin"], response_model=ShortUrlOutPrivate)
+async def read_short_url(
+    *, _superuser: CurrentActiveSuperUserDep, ident: str
+) -> ShortUrl:
+    short_url = await ShortUrl.find(ShortUrl.ident == ident).first_or_none()
     if not short_url:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -65,12 +97,10 @@ async def read_short_url(*, current_user: CurrentActiveUserDep, ident: str) -> S
     return short_url
 
 
-@router.patch("/urls/{ident}/refresh", response_model=ShortUrlPublic)
-async def refresh_short_url(
-    *, current_user: CurrentActiveUserDep, ident: str
-) -> ShortUrl:
+@router.patch("/urls/{ident}/refresh", response_model=ShortUrlOut)
+async def refresh_short_url(*, user: CurrentActiveUserDep, ident: str) -> ShortUrl:
     short_url = await ShortUrl.find(
-        ShortUrl.user_id == current_user.id, ShortUrl.ident == ident
+        ShortUrl.ident == ident, ShortUrl.user_id == user.id
     ).first_or_none()
     if not short_url:
         raise HTTPException(
@@ -87,11 +117,11 @@ async def refresh_short_url(
     return short_url
 
 
-@router.delete("/urls/{ident}", status_code=status.HTTP_204_NO_CONTENT)
-async def delete_short_url(*, current_user: CurrentActiveUserDep, ident: str) -> None:
-    short_url = await ShortUrl.find(
-        ShortUrl.user_id == current_user.id, ShortUrl.ident == ident
-    ).first_or_none()
+@router.delete("/urls/{ident}", tags=["admin"], status_code=status.HTTP_204_NO_CONTENT)
+async def delete_short_url(
+    *, _superuser: CurrentActiveSuperUserDep, ident: str
+) -> None:
+    short_url = await ShortUrl.find(ShortUrl.ident == ident).first_or_none()
     if not short_url:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,

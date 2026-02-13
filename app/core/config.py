@@ -1,6 +1,13 @@
 from typing import Annotated
 
-from pydantic import AnyUrl, BeforeValidator, SecretStr, UrlConstraints, computed_field
+from pydantic import (
+    AnyUrl,
+    BeforeValidator,
+    EmailStr,
+    SecretStr,
+    UrlConstraints,
+    computed_field,
+)
 from pydantic_core import MultiHostUrl
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
@@ -39,6 +46,11 @@ class Settings(BaseSettings):
     secret_key: SecretStr
     algorithm: str = "HS256"
     access_token_expire_minutes: int = 30
+
+    # Superuser
+    first_superuser: str
+    first_superuser_email: EmailStr
+    first_superuser_password: SecretStr
 
     # URLs
     url_ident_length: int = 7
