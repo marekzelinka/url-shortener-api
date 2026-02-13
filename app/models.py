@@ -6,15 +6,16 @@ from typing import Annotated, TypeVar
 
 from beanie import Document, Indexed, PydanticObjectId, SortDirection
 from pydantic import (
+    AfterValidator,
     AnyUrl,
     BaseModel,
     ConfigDict,
     EmailStr,
     Field,
     StringConstraints,
-    field_validator,
 )
 from pydantic.generics import GenericModel
+from slugify import slugify
 
 SchemaType = TypeVar("SchemaType", bound=BaseModel)
 
@@ -136,22 +137,14 @@ class ShortUrl(Document):
     ]
     expires_at: Annotated[datetime | None, Indexed(expireAfterSeconds=0)] = None
     last_visit_at: datetime | None = None
-    slug: Annotated[str | None, Indexed(unique=True)] = None
+    slug: Annotated[str, Indexed(unique=True)]
     user_id: PydanticObjectId
 
 
 class ShortUrlIn(BaseModel):
     url: AnyUrl
-    slug: Annotated[str | None, Field(min_length=1, max_length=64)] = None
+    slug: Annotated[str, Field(min_length=1, max_length=64), AfterValidator(slugify)]
     expiration_days: Annotated[float | None, Field(ge=0.0)] = None
-
-    @field_validator("slug", mode="after")
-    @classmethod
-    def normalize_slug(cls, slug: str | None) -> str | None:
-        """Transforms existing slug by lowercasing and replacing spaces with dashes."""
-        if slug is not None:
-            slug = slug.strip().lower().replace(" ", "-")
-        return slug
 
 
 class ShortUrlOut(BaseModel):
@@ -163,7 +156,7 @@ class ShortUrlOut(BaseModel):
     created_at: datetime
     expires_at: datetime | None = None
     last_visit_at: datetime | None = None
-    slug: str | None = None
+    slug: str
 
 
 class ShortUrlOutPrivate(ShortUrlOut):

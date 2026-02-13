@@ -27,15 +27,14 @@ router = APIRouter(tags=["urls"])
 async def create_short_url(
     *, user: CurrentActiveUserDep, short_url_in: ShortUrlIn
 ) -> ShortUrl:
-    if short_url_in.slug is not None:
-        existing_short_url = await ShortUrl.find(
-            ShortUrl.slug == short_url_in.slug
-        ).first_or_none()
-        if existing_short_url:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="The URL associated with this slug already exists",
-            )
+    existing_short_url = await ShortUrl.find(
+        ShortUrl.slug == short_url_in.slug
+    ).first_or_none()
+    if existing_short_url:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="The URL associated with this slug already exists",
+        )
 
     origin = str(short_url_in.url)
     expires_at = (
