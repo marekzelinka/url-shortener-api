@@ -108,15 +108,13 @@ class UserPrivateUpdate(UserUpdate):
 class UserOut(UserBase):
     model_config = ConfigDict(from_attributes=True)
 
+    id: PydanticObjectId
     created_at: datetime
 
 
-class UserOutPrivate(UserBase):
-    model_config = ConfigDict(from_attributes=True)
-
+class UserOutPrivate(UserOut):
     is_active: bool
     is_superuser: bool
-    created_at: datetime
 
 
 class Token(BaseModel):

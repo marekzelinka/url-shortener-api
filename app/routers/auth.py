@@ -19,7 +19,8 @@ async def login_for_access_token(
 ) -> Token:
     # Look up user by email (case-insensitive)
     user = await User.find(
-        {"username": {"$regex": f"^{re.escape(form_data.username)}$", "$options": "i"}}
+        {"username": {"$regex": f"^{re.escape(form_data.username)}$", "$options": "i"}},
+        User.is_active,
     ).first_or_none()
     # Verify user exists and password is correct
     # Don't reveal which one failed (security best practice)

@@ -1,3 +1,4 @@
+import re
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 
@@ -5,12 +6,36 @@ from fastapi import FastAPI
 
 from app.core.config import config
 from app.core.db import init_db
+from app.core.security import hash_password
+from app.models import User
 from app.routers import auth, redirect, urls, users
 
 
 @asynccontextmanager
 async def lifespan(_app: FastAPI) -> AsyncGenerator[None]:
     await init_db()
+
+    superuser = await User.find(
+        {
+            "username": {
+                "$regex": f"^{re.escape(config.first_superuser)}$",
+                "$options": "i",
+            },
+            "email": {
+                "$regex": f"^{re.escape(config.first_superuser_email)}$",
+                "$options": "i",
+            },
+        }
+    ).first_or_none()
+    if not superuser:
+        await User(
+            username=config.first_superuser,
+            email=config.first_superuser_email.lower(),
+            password_hash=hash_password(
+                config.first_superuser_password.get_secret_value()
+            ),
+            is_superuser=True,
+        ).insert()
 
     yield
 

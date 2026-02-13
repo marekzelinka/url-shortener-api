@@ -7,7 +7,6 @@ from app.core.security import hash_password
 from app.deps import (
     CurrentActiveSuperUserDep,
     CurrentActiveUserDep,
-    CurrentUserDep,
     PaginationParamsDep,
     SortParamsDep,
 )
@@ -79,7 +78,7 @@ async def read_users(
 
 
 @router.get("/me", response_model=UserOut)
-async def read_current_user(*, user: CurrentUserDep) -> User:
+async def read_current_user(*, user: CurrentActiveUserDep) -> User:
     return user
 
 

@@ -22,12 +22,9 @@ def parse_cors(v: str | list[str] | None) -> list[str] | str:
 
 
 class Settings(BaseSettings):
-    model_config = SettingsConfigDict(
-        env_file=".env",
-        env_file_encoding="utf-8",
-    )
+    model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8")
 
-    # MongoDB
+    # Database
     mongo_uri: Annotated[
         MultiHostUrl,
         UrlConstraints(allowed_schemes=["mongodb", "mongodb+srv"]),
