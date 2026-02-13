@@ -6,10 +6,9 @@ on:
     branches:
       - master
 jobs:
-  deploy:
-    name: Run checks and Deploy app
+  ci:
+    name: Run quality checks
     runs-on: ubuntu-latest
-    concurrency: deploy-group # optional: ensure only one action runs at a time
     steps:
       - uses: actions/checkout@v6
       - name: Install uv
@@ -25,6 +24,13 @@ jobs:
           uv run ruff format --check .
       - name: Typecheck with Pyrefly
         run: uv run pyrefly check
+  deploy:
+    name: Deploy to Fly.io
+    needs: ci # Only runs if `ci` job succeeds
+    runs-on: ubuntu-latest
+    concurrency: deploy-group # optional: ensure only one action runs at a time
+    steps:
+      - uses: actions/checkout@v6
       - uses: superfly/flyctl-actions/setup-flyctl@master
       - run: flyctl deploy --remote-only
         env:
