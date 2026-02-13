@@ -1,6 +1,6 @@
 # URL shortener RESTful API
 
-Shortify is a fast, fully async and reliable URL shortener **RESTful API** built with **Python** and **FastAPI** framework. It uses **MongoDB** for storing shortened URLs data and implements user registration via **OAuth2 JWT authentication**.
+A fast, fully async and reliable **URL shortener RESTful API** built with **Python** and **FastAPI** framework. It uses **MongoDB** for storing shortened URLs data and implements user registration via **OAuth2 JWT authentication**.
 
 ## Features
 
