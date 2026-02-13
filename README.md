@@ -90,6 +90,6 @@ Once started, access the interactive docs at: [http://localhost:8000/docs](http:
 
 ## TODO
 
-- [ ] deploy to Fly.io
-- [ ] add admin routes for managment
-- [ ] private short urls (add `is_public` field to `ShortURL`)
+- [x] deploy to Fly.io
+- [x] add admin routes for managment
+- [-] private short urls (add `is_public` field to `ShortURL`)
