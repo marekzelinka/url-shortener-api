@@ -4,14 +4,27 @@ name: Fly Deploy
 on:
   push:
     branches:
-      - main
+      - master
 jobs:
   deploy:
-    name: Deploy app
+    name: Run checks and Deploy app
     runs-on: ubuntu-latest
-    concurrency: deploy-group    # optional: ensure only one action runs at a time
+    concurrency: deploy-group # optional: ensure only one action runs at a time
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
+      - name: Install uv
+        uses: astral-sh/setup-uv@v7
+        with:
+          python-version-file: ".python-version"
+          enable-cache: true
+      - name: Install dependencies
+        run: uv sync --locked --all-extras --dev
+      - name: Lint and Format with Ruff
+        run: |
+          uv run ruff check .
+          uv run ruff format --check .
+      - name: Typecheck with Pyrefly
+        run: uv run pyrefly check
       - uses: superfly/flyctl-actions/setup-flyctl@master
       - run: flyctl deploy --remote-only
         env:
